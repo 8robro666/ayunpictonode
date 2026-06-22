@@ -100,7 +100,7 @@ app.loader.load((loader, resources) => {
 
 	function generateRoomButtons(obj) {
 		pc_sprites.roomButtons = [];
-		var urlArray = ["images/room_a.png", "images/room_b.png", "images/room_c.png", "images/room_d.png"];
+		var urlArray = ["images/room_a.gif", "images/room_b.png", "images/room_c.png", "images/room_d.png"];
 		for(var i = 0; i < obj.count.length; i++) {
 			var roomButton = PIXI.Sprite.from(urlArray[i % 4]);
 			roomButton.x = 31;
