@@ -25,13 +25,14 @@ const app = express();
 
 // Parse form bodies for login
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 // Session middleware - set SESSION_SECRET and ADMIN_PASSWORD in environment for production.
 app.use(session({ secret: process.env.SESSION_SECRET || 'replace-this', resave: false, saveUninitialized: false }));
 
 function requireAdmin(req, res, next) {
   if (req.session && req.session.isAdmin) return next();
-  return res.redirect('/admin-login.html');
+  return res.status(401).json({ error: 'Not authenticated' });
 }
 
 // Login endpoint - compares to ADMIN_PASSWORD env var; fallback to 'KingSquincy' for convenience.
@@ -54,6 +55,33 @@ app.get('/admin.html', requireAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, prefix, 'admin.html'));
 });
 
+// Server info endpoint
+app.get('/admin/info', requireAdmin, (req, res) => {
+  res.json({
+    users: users.length,
+    maxUsers: 16,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Broadcast announcement endpoint
+app.post('/admin/broadcast', requireAdmin, (req, res) => {
+  const message = req.body && req.body.message ? req.body.message : '';
+  if (!message || message.trim().length === 0) {
+    return res.status(400).json({ error: 'Message cannot be empty' });
+  }
+  
+  const announcement = {
+    type: 'sv_announcement',
+    message: message.slice(0, 200) // Limit to 200 chars
+  };
+  
+  // Send to all connected clients
+  sendToAll(announcement);
+  
+  res.json({ success: true, message: 'Announcement sent to ' + users.length + ' users' });
+});
+
 // Serve other static files from www
 app.use(express.static(prefix));
 
@@ -69,6 +97,14 @@ let consperip={};
 
 function playerChecks(data){
   return ("player" in data)&&("name" in data.player)&&("color" in data.player);
+}
+
+function sendToAll(data) {
+  wss.clients.forEach(ws => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(data));
+    }
+  });
 }
 
 wss.on('connection', function(ws,req) {
@@ -123,7 +159,7 @@ wss.on('connection', function(ws,req) {
           break;
         case "cl_sendMessage":
           if(ws.playerData==null)return ws.close();
-          if(!( ("message" in data) && playerChecks(data.message) && ("textboxes" in data.message) && Array.isArray(data.message.textboxes) && ("lines" in data.message) && !isNaN(data.message.lines) )) return ws.close();
+          if(!( ("message" in data) && playerChecks(data.message) && ("textboxes" in data.message) && Array.isArray(data.message.textboxes) && ("lines" in data.message) && !isNaN(data.message.lin[...]
           for(let i=0;i<data.message.textboxes.length;i++){
             if("text" in data.message.textboxes[i]){
               data.message.textboxes[i].text=data.message.textboxes[i].text.slice(0,30);
