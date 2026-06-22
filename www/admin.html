@@ -12,21 +12,28 @@
     .admin-area{margin-top:18px}
     .note{font-size:13px;color:#7b8794}
     .danger{color:#b02a37}
+    .success{color:#27ae60}
     pre{background:#f3f6fa;padding:12px;border-radius:6px;overflow:auto}
-    button{background:#0b74de;color:#fff;border:0;padding:10px 14px;border-radius:6px;font-size:15px;cursor:pointer}
+    button{background:#0b74de;color:#fff;border:0;padding:10px 14px;border-radius:6px;font-size:15px;cursor:pointer;margin-right:8px}
+    button:hover{background:#0966d2}
+    button:disabled{background:#ccc;cursor:not-allowed}
+    input[type="text"]{padding:8px;border:1px solid #ddd;border-radius:4px;font-size:14px;flex:1}
+    .input-group{display:flex;gap:8px;margin-top:8px}
+    .feedback{margin-top:8px;padding:8px;border-radius:4px;font-size:13px}
+    .feedback.success{background:#d4edda;color:#155724}
+    .feedback.error{background:#f8d7da;color:#721c24}
   </style>
 </head>
 <body>
   <div class="card" role="main">
     <h1>Admin Panel</h1>
-    <p class="lead">You are authenticated. Use the controls below to interact with the server (examples only).</p>
+    <p class="lead">You are authenticated. Use the controls below to manage the Pictochat server.</p>
 
     <div class="admin-area">
       <h2>Controls</h2>
-      <p class="note">Below are example admin controls. They call server endpoints where appropriate. Implement real endpoints before using against production data.</p>
 
       <section>
-        <h3>Server Info (example)</h3>
+        <h3>Server Info</h3>
         <pre id="serverInfo">No data fetched yet.</pre>
         <div style="margin-top:8px">
           <button id="fetchInfo">Fetch server info</button>
@@ -34,18 +41,13 @@
       </section>
 
       <section style="margin-top:14px">
-        <h3>Broadcast Message (example)</h3>
-        <p class="note">This will only show a dialog locally unless you add a server API to broadcast.</p>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <input id="broadcastText" placeholder="Message to users" />
+        <h3>Broadcast Message (Announcement)</h3>
+        <p class="note">Send an announcement to all connected users.</p>
+        <div class="input-group">
+          <input id="broadcastText" type="text" placeholder="Message to users (max 200 characters)" maxlength="200" />
           <button id="sendBroadcast">Send</button>
         </div>
-      </section>
-
-      <section style="margin-top:14px">
-        <h3 class="danger">Danger zone</h3>
-        <p class="note">Example destructive actions are disabled. Implement secure server endpoints before enabling.</p>
-        <button id="dangerBtn" disabled>Delete all rooms (disabled)</button>
+        <div id="broadcastFeedback"></div>
       </section>
 
       <div style="margin-top:18px">
@@ -60,27 +62,59 @@
       const serverInfo = document.getElementById('serverInfo');
       const sendBroadcast = document.getElementById('sendBroadcast');
       const broadcastText = document.getElementById('broadcastText');
+      const broadcastFeedback = document.getElementById('broadcastFeedback');
       const logoutBtn = document.getElementById('logout');
 
       fetchInfoBtn.addEventListener('click', async () => {
         try{
-          const res = await fetch('/info').catch(()=>null);
+          const res = await fetch('/admin/info');
           if(res && res.ok){
             const json = await res.json();
             serverInfo.textContent = JSON.stringify(json, null, 2);
           } else {
-            serverInfo.textContent = 'No /info endpoint found or request failed.';
+            serverInfo.textContent = 'Failed to fetch server info.';
           }
         }catch(e){
           serverInfo.textContent = 'Error fetching server info: ' + (e && e.message ? e.message : e);
         }
       });
 
-      sendBroadcast.addEventListener('click', () => {
+      sendBroadcast.addEventListener('click', async () => {
         const msg = (broadcastText.value||'').trim();
-        if(!msg){ alert('Enter a message first.'); return; }
-        alert('Broadcast (local demo): ' + msg);
-        broadcastText.value = '';
+        if(!msg){ 
+          broadcastFeedback.textContent = 'Please enter a message first.';
+          broadcastFeedback.className = 'feedback error';
+          return; 
+        }
+        
+        sendBroadcast.disabled = true;
+        broadcastFeedback.textContent = 'Sending...';
+        broadcastFeedback.className = 'feedback';
+        
+        try {
+          const res = await fetch('/admin/broadcast', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: 'message=' + encodeURIComponent(msg)
+          });
+          
+          if(res.ok) {
+            const json = await res.json();
+            broadcastFeedback.textContent = 'Announcement sent successfully!';
+            broadcastFeedback.className = 'feedback success';
+            broadcastText.value = '';
+          } else {
+            broadcastFeedback.textContent = 'Failed to send announcement.';
+            broadcastFeedback.className = 'feedback error';
+          }
+        } catch(e) {
+          broadcastFeedback.textContent = 'Error: ' + (e && e.message ? e.message : e);
+          broadcastFeedback.className = 'feedback error';
+        } finally {
+          sendBroadcast.disabled = false;
+        }
       });
 
       logoutBtn.addEventListener('click', async () => {
