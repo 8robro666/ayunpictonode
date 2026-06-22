@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Panel - AyunPictoNode</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f7fb;margin:0}
+    .card{width:680px;max-width:95%;background:#fff;border-radius:10px;box-shadow:0 6px 20px rgba(18,38,63,.08);padding:28px}
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{margin:0 0 18px;color:#51607a}
+    .pw-row{display:flex;gap:8px}
+    input[type=password]{flex:1;padding:10px 12px;border:1px solid #dbe3ee;border-radius:6px;font-size:15px}
+    button{background:#0b74de;color:#fff;border:0;padding:10px 14px;border-radius:6px;font-size:15px;cursor:pointer}
+    .hidden{display:none}
+    .admin-area{margin-top:18px}
+    .note{font-size:13px;color:#7b8794}
+    .danger{color:#b02a37}
+    pre{background:#f3f6fa;padding:12px;border-radius:6px;overflow:auto}
+  </style>
+</head>
+<body>
+  <div class="card" role="main">
+    <h1>Admin Panel</h1>
+    <p class="lead">Enter the admin password to view admin controls.</p>
+
+    <div id="prompt">
+      <div class="pw-row">
+        <input id="adminPw" type="password" placeholder="Admin password" aria-label="Admin password" />
+        <button id="unlockBtn">Unlock</button>
+      </div>
+      <p class="note">This is a simple client-side gate. For production use, implement server-side authentication.</p>
+    </div>
+
+    <div id="adminArea" class="admin-area hidden" aria-hidden="true">
+      <h2>Controls</h2>
+      <p class="note">Below are example admin controls. They run only in the browser and do not change the server.</p>
+
+      <section>
+        <h3>Server Info (example)</h3>
+        <pre id="serverInfo">No data fetched yet.</pre>
+        <div style="margin-top:8px">
+          <button id="fetchInfo">Fetch server info</button>
+        </div>
+      </section>
+
+      <section style="margin-top:14px">
+        <h3>Broadcast Message (example)</h3>
+        <p class="note">This will only show a dialog locally. Replace with an API call to broadcast to connected clients.</p>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="broadcastText" placeholder="Message to users" />
+          <button id="sendBroadcast">Send</button>
+        </div>
+      </section>
+
+      <section style="margin-top:14px">
+        <h3 class="danger">Danger zone</h3>
+        <p class="note">Example destructive actions are disabled. Implement secure server endpoints before enabling.</p>
+        <button id="dangerBtn" disabled>Delete all rooms (disabled)</button>
+      </section>
+
+      <div style="margin-top:18px">
+        <button id="lockBtn">Lock admin panel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      // Password - EXACT value requested by repository owner
+      const ADMIN_PASSWORD = "KingSquincy";
+
+      const promptEl = document.getElementById('prompt');
+      const adminArea = document.getElementById('adminArea');
+      const pwInput = document.getElementById('adminPw');
+      const unlockBtn = document.getElementById('unlockBtn');
+      const lockBtn = document.getElementById('lockBtn');
+      const fetchInfoBtn = document.getElementById('fetchInfo');
+      const serverInfo = document.getElementById('serverInfo');
+      const sendBroadcast = document.getElementById('sendBroadcast');
+      const broadcastText = document.getElementById('broadcastText');
+
+      function showAdmin(){
+        promptEl.classList.add('hidden');
+        adminArea.classList.remove('hidden');
+        adminArea.setAttribute('aria-hidden','false');
+        pwInput.value = '';
+      }
+      function hideAdmin(){
+        promptEl.classList.remove('hidden');
+        adminArea.classList.add('hidden');
+        adminArea.setAttribute('aria-hidden','true');
+      }
+
+      unlockBtn.addEventListener('click', () => {
+        const v = pwInput.value || '';
+        if(v === ADMIN_PASSWORD){
+          showAdmin();
+        } else {
+          pwInput.value = '';
+          pwInput.focus();
+          alert('Incorrect password.');
+        }
+      });
+
+      pwInput.addEventListener('keydown', (ev) => {
+        if(ev.key === 'Enter') unlockBtn.click();
+      });
+
+      lockBtn.addEventListener('click', hideAdmin);
+
+      fetchInfoBtn.addEventListener('click', async () => {
+        // Example fetch - adjust to your server's admin endpoints
+        try{
+          // Try an informative endpoint if present
+          const res = await fetch('/info').catch(()=>null);
+          if(res && res.ok){
+            const json = await res.json();
+            serverInfo.textContent = JSON.stringify(json, null, 2);
+          } else {
+            serverInfo.textContent = 'No /info endpoint found or request failed.';
+          }
+        }catch(e){
+          serverInfo.textContent = 'Error fetching server info: ' + (e && e.message ? e.message : e);
+        }
+      });
+
+      sendBroadcast.addEventListener('click', () => {
+        const msg = (broadcastText.value||'').trim();
+        if(!msg){ alert('Enter a message first.'); return; }
+        // Example only: show locally
+        alert('Broadcast (local demo): ' + msg);
+        broadcastText.value = '';
+      });
+
+    })();
+  </script>
+</body>
+</html>
