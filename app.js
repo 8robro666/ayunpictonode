@@ -159,7 +159,7 @@ wss.on('connection', function(ws,req) {
           break;
         case "cl_sendMessage":
           if(ws.playerData==null)return ws.close();
-          if(!( ("message" in data) && playerChecks(data.message) && ("textboxes" in data.message) && Array.isArray(data.message.textboxes) && ("lines" in data.message) && !isNaN(data.message.lin[...]
+          if(!( ("message" in data) && playerChecks(data.message) && ("textboxes" in data.message) && Array.isArray(data.message.textboxes) && ("lines" in data.message) && !isNaN(data.message.lines) ))return ws.close();
           for(let i=0;i<data.message.textboxes.length;i++){
             if("text" in data.message.textboxes[i]){
               data.message.textboxes[i].text=data.message.textboxes[i].text.slice(0,30);
