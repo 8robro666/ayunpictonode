@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Login - AyunPictoNode</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f7fb;margin:0}
+    .card{width:420px;max-width:95%;background:#fff;border-radius:10px;box-shadow:0 6px 20px rgba(18,38,63,.08);padding:28px}
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{margin:0 0 18px;color:#51607a}
+    .pw-row{display:flex;gap:8px}
+    input[type=password]{flex:1;padding:10px 12px;border:1px solid #dbe3ee;border-radius:6px;font-size:15px}
+    button{background:#0b74de;color:#fff;border:0;padding:10px 14px;border-radius:6px;font-size:15px;cursor:pointer}
+    .note{font-size:13px;color:#7b8794}
+  </style>
+</head>
+<body>
+  <div class="card" role="main">
+    <h1>Admin Login</h1>
+    <p class="lead">Enter the admin password to continue.</p>
+
+    <form method="POST" action="/admin/login">
+      <div class="pw-row">
+        <input name="password" type="password" placeholder="Admin password" aria-label="Admin password" />
+        <button type="submit">Login</button>
+      </div>
+    </form>
+
+    <p class="note">Server-side authentication is required to access the admin page. Set ADMIN_PASSWORD and SESSION_SECRET environment variables in production.</p>
+  </div>
+</body>
+</html>

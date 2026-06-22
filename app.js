@@ -2,6 +2,9 @@ const { WebSocket, WebSocketServer } = require("ws");
 const fs = require("fs");
 const path = require("path");
 const mime = require("mime-types");
+const express = require("express");
+const session = require("express-session");
+const bodyParser = require("body-parser");
 
 const prefix = "www";
 
@@ -18,21 +21,43 @@ function throughDirectory(directory) {
 
 throughDirectory(prefix);
 
-const server = require("http").createServer((req,res)=>{
-  let url = req.url;
-  if(url.startsWith("/"))url=url.slice(1);
-  if(url=="")url = "index.html";
-  if(files.includes(url)){
-    res.writeHead(200,{"Content-Type":mime.contentType(url)});
-    if(!(url in cache)){
-      cache[url]=fs.readFileSync(prefix+"/"+url);
-    }
-    res.end(cache[url]);
-  }else{
-    res.writeHead(404,{"Content-Type":"text/plain"});
-    res.end("404 Not Found");
+const app = express();
+
+// Parse form bodies for login
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// Session middleware - set SESSION_SECRET and ADMIN_PASSWORD in environment for production.
+app.use(session({ secret: process.env.SESSION_SECRET || 'replace-this', resave: false, saveUninitialized: false }));
+
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.isAdmin) return next();
+  return res.redirect('/admin-login.html');
+}
+
+// Login endpoint - compares to ADMIN_PASSWORD env var; fallback to 'KingSquincy' for convenience.
+app.post('/admin/login', (req, res) => {
+  const provided = req.body && req.body.password ? req.body.password : '';
+  const adminSecret = process.env.ADMIN_PASSWORD || 'KingSquincy';
+  if (provided === adminSecret) {
+    req.session.isAdmin = true;
+    return res.redirect('/admin.html');
   }
+  res.status(401).send('Invalid password');
 });
+
+app.get('/admin/logout', (req, res) => {
+  req.session.destroy(()=>res.redirect('/'));
+});
+
+// Protect admin page
+app.get('/admin.html', requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, prefix, 'admin.html'));
+});
+
+// Serve other static files from www
+app.use(express.static(prefix));
+
+const server = require("http").createServer(app);
 
 const wss = new WebSocketServer({ server });
 
@@ -89,30 +114,25 @@ wss.on('connection', function(ws,req) {
         case "cl_joinRoom":
           if(ws.playerData==null)return ws.close();
           if(!(playerChecks(data)&&("id" in data)))return ws.close();
-          //we ignore the player variable as it is not needed with the current method (it is also less secure if we were to use it)
-          //for now, only one room, so dont check the id at all
           if(users.length>=16||abusers.includes(ip))return;
           if(users.includes(ws.playerData))return ws.close();
           if(users.some(p=>p.name==ws.playerData.name))return ws.close();
-          //while(users.some(p=>p.name==ws.playerData.name)&&data.player.name.length==0)ws.playerData.name=(""+Math.random()).slice(2);//not sure if original pictochat allowed multiple of the same name buuuuut we will NOT
           users.push(ws.playerData);
           ws.send(JSON.stringify({type:"sv_roomData",id:"room_a"}));
           sendToOthers(ws,{type:"sv_playerJoined",player:ws.playerData,id:"room_a"});
           break;
         case "cl_sendMessage":
           if(ws.playerData==null)return ws.close();
-          if(!(("message" in data)&&playerChecks(data.message)&&("textboxes" in data.message)&&Array.isArray(data.message.textboxes)&&("lines" in data.message)&&!isNaN(data.message.lines)&&data.message.lines<=5&&data.message.lines>0))return ws.close();
+          if(!( ("message" in data) && playerChecks(data.message) && ("textboxes" in data.message) && Array.isArray(data.message.textboxes) && ("lines" in data.message) && !isNaN(data.message.lines) )) return ws.close();
           for(let i=0;i<data.message.textboxes.length;i++){
             if("text" in data.message.textboxes[i]){
               data.message.textboxes[i].text=data.message.textboxes[i].text.slice(0,30);
             }
           }
           data.message.textboxes=data.message.textboxes.slice(0,50);
-          //todo: validate drawing
           data.type="sv_receivedMessage";
           data.message.player=ws.playerData;
           sendToOthers(ws,data);
-          //abc
           break;
         case "cl_leaveRoom":
           if(ws.playerData==null)return ws.close();
@@ -147,4 +167,4 @@ function sendToOthers(ws,data,cond){
   wss.clients.forEach(w=>w.readyState===WebSocket.OPEN&&w.playerData!=null&&users.includes(w.playerData)&&w.playerData!=ws.playerData&&cond(w)&&w.send(JSON.stringify(data)));
 }
 
-server.listen(8080);
+server.listen(process.env.PORT||8080);
